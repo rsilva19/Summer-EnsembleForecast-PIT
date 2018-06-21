@@ -18,33 +18,21 @@ library(reshape2)
 library(ggplot2)
 
 
-#read in all constant weight data 
 
-
-#labeling vectors 
+#assign vectors 
 valid_weeks<- c('01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52')
 later_weeks<- c('01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20')
 first_weeks<- c('43', '44', '45', '46', '47', '48', '49', '50', '51', '52')
 seasons<- c('2010/2011', '2011/2012', '2012/2013', '2013/2014', '2014/2015', '2015/2016', '2016/2017')
 regions<- c('HHS Region 1', 'HHS Region 2','HHS Region 3','HHS Region 4','HHS Region 5','HHS Region 6','HHS Region 7','HHS Region 8','HHS Region 9','HHS Region 10')
 targets<- c('1 wk ahead', '2 wk ahead','3 wk ahead','4 wk ahead','Season peak percentage')
+weeks_as_ints<- c(1:20, 43:52)
 
-#reading in data and rbinding them
-#adding week and year columns 
-all<- rbind()
-for(week in valid_weeks){
-  for (year in 2010:2017){
-    if (!(week %in% later_weeks & year =='2010') & !(week %in% first_weeks & year =='2017')){
-      str<- sprintf('model-forecasts/cv-ensemble-models/constant-weights/EW%s-%s-constant-weights.csv', week, year)
-      add<- read_csv(str)
-      add$week<- rep(as.numeric(substr(str,55,56)), nrow(add))
-      add$year<- rep(as.numeric(substr(str,58,61)),nrow(add))
-      all<- rbind(all, add)}
-  }
-}
 
-#function for reading in data  
-        #path shld be similar to'model-forecasts/cv-ensemble-models/constant-weights/EW%s-%s-constant-weights.csv'
+#function reads in 210 cvs from 1 ensemble model, adds week and year columns and binds them 
+      #path: string sim. to 'model-forecasts/cv-ensemble-models/constant-weights/EW%s-%s-constant-weights.csv'
+      #start_wk: where in string model week is mentioned
+      #start_yr: where in string model year is mentioned
 import<- function(path, start_wk, start_yr){     
   data<- rbind()
   for(week in valid_weeks){
@@ -52,29 +40,33 @@ import<- function(path, start_wk, start_yr){
       if (!(week %in% later_weeks & year =='2010') & !(week %in% first_weeks & year =='2017')){
         str<- sprintf(path, week, year)
         new<- read_csv(str)
-        new$week<- rep(as.numeric(substr(str,start_wk,start_wk+1)), nrow(new)) #adds column: week (55,56 for cw)
-        new$year<- rep(as.numeric(substr(str,start_yr, start_yr+3)),nrow(new)) #adds column: year (58,51 for cw)
+        new$week<- rep(as.numeric(substr(str,start_wk,start_wk+1)), nrow(new)) #adds column: week 
+        new$year<- rep(as.numeric(substr(str,start_yr, start_yr+3)),nrow(new)) #adds column: year 
         data<- rbind(data, new)}
     }
   }
   return(data)
 }
-#read in 4 other ensemble models
-equal_weights<- import('model-forecasts/cv-ensemble-models/equal-weights/EW%s-%s-equal-weights.csv', 52, 55)
-target_region_weights<- import('model-forecasts/cv-ensemble-models/target-and-region-based-weights/EW%s-%s-target-and-region-based-weights.csv', 70, 73)
-target_weights<- import('model-forecasts/cv-ensemble-models/target-based-weights/EW%s-%s-target-based-weights.csv', 59, 62)
-target_type_weights<-import('model-forecasts/cv-ensemble-models/target-type-based-weights/EW%s-%s-target-type-based-weights.csv', 64, 67)
 
-#tidy data 
-cw_tidy<- all %>% filter(location !=  'US National', target != 'week') %>% mutate(Season = ifelse(week > 30, paste(year, year+1, sep = "/"), paste(year-1, year, sep= "/")))
+#import() all ensemble models 
 
-  #function for tidy data:
+#**impt: in order for other people to run from dif. directories, will need general code for start_wk and start_yr
+constant_weights<- import('~/Desktop/PIT_git/model-forecasts/cv-ensemble-models/constant-weights/EW%s-%s-constant-weights.csv', 73, 76)
+equal_weights<- import('~/Desktop/PIT_git/model-forecasts/cv-ensemble-models/equal-weights/EW%s-%s-equal-weights.csv', 70, 73)
+target_region_weights<- import('~/Desktop/PIT_git/model-forecasts/cv-ensemble-models/target-and-region-based-weights/EW%s-%s-target-and-region-based-weights.csv', 88, 91)
+target_weights<- import('~/Desktop/PIT_git/model-forecasts/cv-ensemble-models/target-based-weights/EW%s-%s-target-based-weights.csv', 77, 80)
+target_type_weights<-import('~/Desktop/PIT_git/model-forecasts/cv-ensemble-models/target-type-based-weights/EW%s-%s-target-type-based-weights.csv', 82, 85)
+
+#function for tidy data:
 make_tidy<- function(ensemble){
-  ensemble %>% filter(location !=  'US National', target != 'week') %>% mutate(Season = ifelse(week > 30, paste(year, year+1, sep = "/"), paste(year-1, year, sep= "/")))
-  return(ensemble)
+  tidy<- ensemble %>% filter(location !=  'US National', target != 'week') %>% mutate(Season = ifelse(week > 30, paste(year, year+1, sep = "/"), paste(year-1, year, sep= "/")))
+  return(tidy)
 }
 
-#tidy up other 4
+constant_weights%>% 
+
+#tidy all ensembles
+constant_weights_tidy<- make_tidy(constant_weights)
 equal_weights_tidy<- make_tidy(equal_weights)
 target_region_weights_tidy<- make_tidy(target_region_weights)
 target_weights_tidy<- make_tidy(target_weights)
@@ -84,156 +76,152 @@ target_type_weights_tidy<- make_tidy(target_type_weights)
 
 True data that will be used for all PIT values/histograms 
 ```{r}
-true<- read_csv('scores/target-multivals.csv')
+true<- read_csv('~/Desktop/PIT_git/scores/target-multivals.csv')
 
 names(true) <- gsub(" ", "_", names(true))
-head(true)
 true_tidy<- true %>% 
   filter(Location != 'US National', Target %in% c('1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season peak percentage'))
-
 ```
 
+Functions for PIT
 ```{r}
+#gets true observation from dataframe true_tidy 
+get_true<- function(CW, Seas, Loca, Tar){   
+  obs <- true_tidy %>% filter(Calendar_Week == CW,Season== Seas, Location == Loca, Target==Tar) %>% select(Valid_Bin_start_incl)
+  return(as.numeric(obs))
+}
+get_true(1,'2010/2011', 'HHS Region 1', '1 wk ahead')
 
-#emipical cdf function 
-empirical_cdf <- function(q, values){   #gives pit value
+#emipical cdf function returns pit value 
+    #q: observed value of wili, q is for 'quantile' bc asking for quantile of observed value
+    #percents: vector of percentages for possibile wili values 
+empirical_cdf <- function(q, percents){   
   bin_index <- 0
-  for (wili in seq(0.1,13.1,.1)){
+  for (wili in seq(0.1,13.1,.1)){  #wili= weighted influenza-like illness (%), seq rep. bins which rep. wili
     if (q < wili){
       break
     }
     bin_index <- bin_index + 1
   }
-  return (cumsum(values)[bin_index])
+  return (cumsum(percents)[bin_index])
 }
 
-#gets true observation from data frame 
-get_true<- function(CW, Seas, Loca, Tar){   
-  q <- true_regions %>% filter(Calendar_Week == CW,Season== Seas, Location == Loca, Target==Tar) %>% select(Valid_Bin_start_incl)
-  return(as.numeric(q))
-}
 
-#trying for all of constant weights
-    #using data sets: 'cw_tidy' and 'true_regions' 
-    #using functions: empirical_cdf()
-
-
-pit_values<- c()
+#generates ~10,500 pit values from ensemble model: uses functions empirical_cdf() and get_true()
 #10 minutes to run 
-for (s in seasons){
-  for (w in valid_weeks){
-    for (r in regions){
-      for(t in targets){
-        df<- cw_tidy %>% filter(location== r, target== t, Season== s, week==w) 
-        values <- df$value[1:length(df$value)-1]
-        q<- get_true(w,s,r,t)
-        pit_values<- c(pit_values,empirical_cdf(q, values))
+generate_all_pit_values<- function(ensemble_data){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+        for (r in regions){
+          for(t in targets){
+            df<- ensemble_data %>% filter(location== r, target== t, Season== s, week==w) 
+            percents <- df$value[1:length(df$value)-1]
+            q<-get_true(w,s,r,t)
+            pit_values<- c(pit_values,empirical_cdf(q, percents))
+          }
+        }
       }
     }
-  }
+  return(pit_values)
 }
 
+#apply generate_all_pit_values() for all ensemble models
+#'all' means ALL targets, regions, seasons, and weeks
+all_pit_constant<- generate_all_pit_values(constant_weights_tidy)
+hist(all_pit_constant, freq=F)
+
+all_pit_equal<- generate_all_pit_values(equal_weights_tidy)
+hist(all_pit_equal, freq=F)
+
+all_pit_target_region<- generate_all_pit_values(target_region_weights_tidy)
+hist(all_pit_target_region, freq= F)  #look skewed
+
+all_pit_target_type<-generate_all_pit_values(target_weights_tidy)
+
+all_pit_target<- generate_all_pit_values(target_type_weights_tidy)
 
 
-#histogram plot of constant weight model 
-hist(pit_values, freq=F)
-
-
-```
-
-
-
-
-
-
-
-
-separating by region and target 
-```{r}
-
-```
-
-
-
-TESTING
-
-```{r}
-#testing
-
-test<- read_csv("model-forecasts/cv-ensemble-models/constant-weights/EW01-2011-constant-weights.csv")
-string<- 'model-forecasts/cv-ensemble-models/constant-weights/EW01-2011-constant-weights.csv'
-test$week<- rep(as.numeric(substr(string,55,56)), nrow(add))
-test$year<- rep(as.numeric(substr(string,58,61)),nrow(add))
-
-head(test)
- #need list of vectors (where each vector contains all values for target )
-
-#r<- list()
-p<- c()
-#add season and week 
-for (l in c('HHS Region 1', 'HHS Region 2','HHS Region 3','HHS Region 4','HHS Region 5','HHS Region 6','HHS Region 7','HHS Region 8','HHS Region 9','HHS Region 10')){
-  for (t in c('1 wk ahead', '2 wk ahead','3 wk ahead','4 wk ahead','Season peak percentage')){
-    df<- test%>% filter(location== l, target== t) 
-    values <- df$value[1:length(df$value)-1]
-    q <- true_regions %>% filter(Calendar_Week==1, Season=='2010/2011', Location == l, Target==t) %>% select(Valid_Bin_start_incl)
-    tes<- as.numeric(q)
-    p<- c(p,empirical_cdf(tes, values))
-  }
+#generates histogram plot
+pit_histogram<- function(pit_values){
+  return(hist(pit_values, freq=F))
 }
-hist(p, freq=F)
 
-ggplot() +aes(p) +geom_histogram(y=..density..)
-plot(density(p))
+#add acf graph
 ```
 
 
 
-SCRAP
 
+
+
+
+
+breaking models up by region and target 
 ```{r}
-#scrap
 
+#start w cw
 
-#use get_true() instead
-observed <- true_regions %>% filter(Calendar_Week==w, Season==s, Location == r, Target==t) %>% select(Valid_Bin_start_incl)
-q<- as.numeric(observed)
+#want to generate sep pit vectors for each target (then region, then region and target) 
+#function that depends on target and model 
 
-tester<- true_regions %>% filter(Calendar_Week ==40,Season== '2010/2011', Location == 'HHS Region 1', Target=='1 wk ahead') %>% select(Valid_Bin_start_incl)
-as.numeric(tester)
-print(tester[1,"Valid_Bin_start_incl"])
+target_pit_values<- function(model, tar){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+        for (r in regions){
+          df<- model %>% filter(location== r, target== tar, Season== s, week==w) 
+            percents <- df$value[1:length(df$value)-1]
+            q<-get_true(w,s,r,tar)
+            pit_values<- c(pit_values,empirical_cdf(q, percents))
+        }
+      }
+    }
+  return(pit_vales)
+}
+#for cw and all targets     
+wk1_cw <- target_pit_values(constant_weights_tidy, '1 wk ahead')  #haven't run yet
+wk2_cw <- target_pit_values(constant_weights_tidy, '2 wk ahead')
+wk3_cw <- target_pit_values(constant_weights_tidy, '3 wk ahead')
+wk4_cw <-  target_pit_values(constant_weights_tidy, '4 wk ahead')
+peak_wk_cw <- target_pit_values(constant_weights_tidy, 'Season peak percentage')
 
-test<- read_csv("model-forecasts/cv-ensemble-models/constant-weights/EW01-2011-constant-weights.csv")
-string<- 'model-forecasts/cv-ensemble-models/constant-weights/EW01-2011-constant-weights.csv'
-t<- substr(string, 55, 61)
-t
-#t2<- strsplit(t, "-")
-y<- data.frame(t2)
-y
-head(test)
-str(test)
-fir<- data.frame(colsplit(t, "-", names= c('week','year')))
-test2<- read_csv("model-forecasts/cv-ensemble-models/constant-weights/EW01-2012-constant-weights.csv")
-string2<- 'model-forecasts/cv-ensemble-models/constant-weights/EW01-2012-constant-weights.csv'
-t2<- substr(string2, 55, 61)
+#function for pit values of regions 
+regions_pit_values<- function(model, reg){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+        for (t in targets){
+          df<- model %>% filter(location== reg, target== t, Season== s, week==w) 
+            percents <- df$value[1:length(df$value)-1]
+            q<-get_true(w,s,reg,t)
+            pit_values<- c(pit_values,empirical_cdf(q, percents))
+        }
+      }
+    }
+  return(pit_vales)
+}
 
-sec<- data.frame(colsplit(t2, "-", names= c('week','year')))
-first_two<- rbind(fir,sec)
+#function for pit values of regions and targets 
+target_and_region_pit_values<- function(model, tar, reg){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+          #could make next 4 lines a function and not include for loops in generate_pit_values()
+          df<- model %>% filter(location== reg, target== tar, Season== s, week==w) 
+          percents <- df$value[1:length(df$value)-1]
+          q<-get_true(w,s,reg,tar)
+          pit_values<- c(pit_values,empirical_cdf(q, percents))
+      }
+    }
+  return(pit_vales)
+}
 
+#50 possible combinations of target and region.. how to make function? vector of vector? 
 
+wk1_HHS1 <- target_and_region_pit_values(constant_weights_tidy,'1 wk ahead', 'HHS Region 1')
+#hist()
 
-
-#make week_year as long as all
-ntimes<- ifelse((week_year$year ==2014 & week_year$week > 30) | (week_year$year ==2015 & week_year$week < 30), 8042, 8020) 
-week_year_long<- week_year %>% slice(rep(1:n(), ntimes))
-str()
-
-
-#all<- rbind(read_csv("model-forecasts/cv-ensemble-models/constant-weights/EW01-2011-constant-weights.csv"),
-           # read_csv("model-forecasts/cv-ensemble-models/constant-weights/EW01-2012-constant-weights.csv"))
-#!(week == '01' & (year == '2011'| year =='2012')) & 
-
-  #for (i in str){
-    #    week_year <- rbind(week_year,data.frame(colsplit(substr(i, 55, 61), "-", names= c('week','year')))) 
-  #    }
 ```
+
 
