@@ -1,0 +1,447 @@
+---
+title: "PIT practice"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+** Not too beneficial:Drawing from a standard normal dist and checking that histogram and empirical cdf resemble the density and cdf.
+Then doing QQ-Plot 
+```{r}
+#copied code from link in notes:http://biostat.mc.vanderbilt.edu/wiki/pub/Main/CourseBios341/distributions-transformations.R
+#
+n<- 1000
+x<- rnorm(n,0,1)
+hist(x, freq = FALSE) #empirical density (histograms can be seen as empirical pdfs)
+t<- c(-300:300)/100 #creates vectors from -300 to 300 sep. by 1/100 ie t[1]=-300, t[2]= -299.9
+lines(t,dnorm(t,0,1)) #true density
+
+plot(ecdf(x))         #ecdf
+lines(t,pnorm(t,0,1), col=2) #true cdf
+ks.test(x, rnorm(n,1000,200))
+
+s<- c(1:n)/n
+plot(s,qnorm(s,0,1))  # true inverse cdf
+x.sort <- sort(x)  #sorts vector by default in decreasing order
+lines(s,x.sort[s*n],col=2,lwd=3) #empirical inverse cdf
+
+plot(x.sort[s*n],qnorm(s,0,1), main="q-q plot") # QQplot: true inverse cdf versus empirical inverse cdf 
+abline(0,1)  #adds straight lines to graph (0=int, 1=slope)
+
+```
+
+
+***Probability Integral Transformation: Drawing Z from N(0,1)
+```{r}
+n<- 10000
+z1<- rnorm(n,0,1)  #draw z from norm(0,1)
+hist(z1, freq=F)
+z2<- rnorm(n,0,5) #ie is true dist is this
+y1<- pnorm(z1,0,1)  #computing cdf of z
+y2<- pnorm(z2,0,1)  #shows worse uniform distribution 
+hist(y1,freq=F)
+hist(y2, freq=F)  # we see that there is higher density on tails  
+lines(s,dunif(s,0,1))  #compares historgram of cdf of norm(0,1) to cdf of unif(0,1)
+
+#inspo from: http://www.osg.or.at/download/files/%7BAB458C9E-20F7-4208-BE75-D340BFF444FE%7D/22_Fabrizio_Durante.pdf
+
+#using above making pretty plots
+
+#puts both histograms next to each other
+par(mfrow=c(1,2))   #nrows,ncols
+#1. histogram of 1000 points from X~ N(0,1)
+n<- 10000
+x<- rnorm(n,0,1)  #draw z from norm(0,1)
+hist(x, freq=F, main= "X ~ N(0,1)")
+#2. pit histogram of Z
+y<- pnorm(x,0,1)
+hist(y, freq=F, main= "PIT Histogram",sub= "x pluged into CDF of N(0,1) ")
+s<- c(1:n)/n
+lines(s,dunif(s,0,1), col=2) #cdf of uniform (2- red, 3-gr,4-blue)
+
+
+
+#library(curstatCI)
+#ComputeBW(x,a)
+#ComputeConfIntervals(a,b,alpha=.05)
+```
+trying to find correlograms (z-z^) 
+```{r}
+n<- 10000
+x<- rnorm(n,0,1)
+z<- pnorm(x,0,5)
+zt<- pnorm(n,0,1)
+
+```
+
+
+
+application of it: 
+```{r}
+n<- 10000
+x<- rnorm(n,0,1)
+y1<- pnorm(x,0,1)  #true cdf
+y2<- pnorm(x,0,5)
+par(mfrow=c(1,2))
+hist(y1, freq=F, main= "X ~N(0,1) w/ N(0,1) CDF", xlab='PIT values')
+s<- c(1:n)/n
+lines(s,dunif(s,0,1), col=2)
+hist(y2, freq=F, main= "X ~N(0,1) w/ N(0,5) CDF", xlab= 'PIT values)
+lines(s,dunif(s,0,1), col=2)
+#this shows that when plugging in data from N(0,1) into a cdf of N(0,5), the distribution does not fit the data. We see a normal distribution (data points have less variation so all clusted in center with little on tails) when we should see a uniform distrubution by theory of PIT
+```
+
+
+***Drawing from an exponential distribution
+```{r}
+
+n<-10000
+x<- rexp(n,1)
+hist(x, freq=F)
+t<- c(0:1200)/100
+lines(t,dexp(t,1)) #dexp=density function
+
+plot(ecdf(x))
+lines(t, pexp(t,1),col=2) #pexp= pdf
+
+#we can show a similar result with the exponential distribution 
+par(mfrow= c(1,2))
+n<-10000
+x<- rexp(n,1)
+hist(x, freq=F, main= "X ~ Exp(1)")
+y<-pexp(x,1)         #PIT 
+hist(y,freq=F, main = "PIT Histogram", sub= "x pluged into CDF of N(0,1) ")
+s<- c(0:100)/100
+lines(s,dunif(s,0,1), col=2)
+
+#application
+par(mfrow= c(1,2))
+y1<-pexp(x,1) 
+y2<-pexp(x,5)
+hist(y1, freq=F, main= "X ~Exp(0,1) in Exp(1) CDF", xlab= "PIT values")
+s<- c(1:n)/n
+lines(s,dunif(s,0,1), col=2)
+hist(y2, freq=F, main= "X ~Exp(0,1) in Exp(5) CDF", xlab= "PIT values")
+lines(s,dunif(s,0,1), col=2)
+
+n<-10000
+x<- rexp(n,1)
+#pdistrs<- function(x)pexp(x,1)
+#pdistrs<- pexp(x,1)
+pdistrs<- "pexp"
+#pit(x, pdistrs , J=20, relative = T, plot = list(ylim= c(0,2.75)))
+ 
+
+
+```
+
+
+***Simulate from AR(1)
+```{r}
+library("forecast")
+par(mfrow=c(1,2))
+t<- arima.sim(list(order=c(1,0,0), ar=.5), n=1000, sd=1) 
+ts.plot(t)
+
+#but say model thinks ar=1  z- pit value from true (observed) data 
+z <- c(pnorm(t[1],0,1))
+for (i in 2:length(t)){
+  z<-c(z, pnorm(t[i], 1*t[i-1],1 ))
+}
+
+hist(z,freq=F) 
+
+#z-  pit value 
+z2 <- c(pnorm(t[1],0,1))
+for (i in 2:length(t)){
+  z2<-c(z2, pnorm(t[i], .5*t[i-1],1 ))
+}
+
+hist(z2,freq=F)
+#put plots side by side 
+```
+
+
+```{r}
+t<- arima.sim(list(order=c(1,0,0), ar=.5), n=500, sd=1) #t represents true data 
+#ts.plot(t)
+
+#but say forecaster model is ar=1  z- pit value from true (observed) data t 
+z <- c(pnorm(t[1],0,1))
+for (i in 2:length(t)){
+  z<-c(z, pnorm(t[i], 1*t[i-1],1 ))
+}
+plot(z)
+z_mean<- mean(z)
+hist(z,freq=F)
+d<- (z-z_mean)
+acf(d)
+pacf(d)
+
+#perfect forcaster 
+z2 <- c(pnorm(t[1],0,1))
+for (i in 2:length(t)){
+  z2<-c(z2, pnorm(t[i], .5*t[i-1],1 ))
+}
+plot(z2)
+z_mean2<- mean(z2)
+hist(z2,freq=F)
+d2<- (z2-z_mean2)
+acf(d2)
+pacf(d2) #all autocorrelations within bounds 
+
+
+#blue dashed lines in acf() show values beyond which the autocorrelations are (statistically) significantly different from zero 
+
+
+#powers of d
+dexp2<- d^2
+dexp3<- d^3
+dexp4 <- d^4
+acf(dexp2)
+pacf(dexp2)
+
+acf(dexp3)
+pacf(dexp3) #outside blue lines 
+
+acf(dexp4)
+pacf(dexp4)
+
+
+
+```
+
+
+
+
+
+```{r}
+
+## GOOD MSE BAD PIT / dat is not from a dist 
+
+ndist <- 1000000
+mu <- 1:ndist
+s <- rchisq(ndist, 3)
+# expected value is mu
+dat <- mu   #rnorm(ndist, mean=mu, sd=s)
+qtiles <- pnorm(dat, mean=mu, sd=s)
+
+hist(qtiles,xlim=c(0,1))
+
+print (mean((mu-dat)^2))
+
+## BAD MSE GOOD PIT  /nicks original code 
+
+ndist <- 1000000
+mu <- 1:ndist
+s <- rchisq(ndist, 3)
+# expected value is mu
+dat <- rnorm(ndist, mean=mu, sd=s)
+qtiles <- pnorm(dat, mean=mu, sd=s)
+
+hist(qtiles,xlim=c(0,1))
+
+print (mean((mu-dat)^2))
+
+
+### GOOD MSE GOOD PIT (SAME DIST)
+mu <- rep(1,ndist)
+s <- rep(1,ndist)
+dat <- rnorm(ndist, mean=mu, sd=s)
+qtiles <- pnorm(dat, mean=mu, sd=s)
+
+hist(qtiles,xlim=c(0,1))
+
+print (mean((mu-dat)^2))
+
+
+
+#DOESN'T WORK
+ndist <- 10000
+mu <- 1:ndist
+s <- rchisq(ndist, .1)
+# expected value is mu
+dat <- rnorm(ndist, mean=mu, sd=s)
+qtiles <- pnorm(dat, mean=mu, sd=s)
+#plot(s)
+hist(qtiles,xlim=c(0,1))
+
+print (mean((mu-dat)^2))
+
+
+# WORKS
+mu <- rep(1,ndist)
+s <- rep(.1,ndist)
+dat <- rnorm(ndist, mean=mu, sd=s)
+qtiles <- pnorm(dat, mean=mu, sd=s)
+
+hist(qtiles)
+
+
+
+```
+trying with 3 different distributions 
+```{r}
+
+
+ndist <- 100000
+mu <- 1:ndist
+s <- rchisq(ndist, 3)
+
+dat1 <- rnorm(ndist, mean=mu, sd=s)
+qtiles1 <- pnorm(dat1, mean=mu, sd=s)
+
+dat2 <- rexp(ndist, rate=mu)
+qtiles2 <- pexp(dat2, rate=3)
+
+dat3<- rchisq(ndist, df=mu)
+qtiles3<- pchisq(dat3, df=1)
+
+all<- c(qtiles1,qtiles2,qtiles3)   #equivalent of combining all PIT values from different dist 
+
+hist(all)
+
+
+
+
+```
+
+```{r}
+n <- rpois(ndist,10)
+p <- rbeta(ndist,1,1)
+
+dat <- rbinom(ndist,n,p)
+quants <- pbinom(ndist,n,p)
+hist(quants)
+```
+```{r}
+set.seed(1234)
+ndist <- 1000000
+mu <- 1:ndist
+s <- rchisq(ndist, .1)   #many small sds
+
+ # expected value is mu
+dat <- rnorm(ndist, mean=mu, sd=s)   #many small sds
+qtiles <- pnorm(dat, mean=mu, sd=s)
+ 
+head(cbind(dat, qtiles, mu, s))
+
+pnorm(seq(.99,1.01, by= .001), mu[1], s[1])
+mu[1]
+s[1]
+
+```
+
+
+```{r}
+library(MCMCpack)
+library(stats)
+x <- seq(0,13,.1)
+
+dist<- rdirichlet(1, c(100,rep(1,length(x)-1))) # generates 131 probabilities (all in 1 vector) that all sum to 1
+
+dist
+
+empirical_cdf <- function(q, values){  #q is obv data, values are the different probabilities that sum to one
+  bin_index <- 0
+  for (wili in seq(0.1,13.1,.1)){  #finding out which bin q is in (ie what bin of wili % the true wili % is in )
+    if (q < wili){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  return (cumsum(values)[bin_index])  #sums all prob up to bin_index (bin_index would be wILI %)
+}
+
+
+test_size =1000
+dat <- sample(x, test_size,replace=TRUE)+ rnorm(test_size,0,.01) #1000 samples from seq 0, 13, .1, rnorm is noise in model
+
+head(dat)
+
+str(dat)
+
+quants <- c()
+for (d in dat){
+  quants <- c(quants,empirical_cdf(d,dist))  #a way to make it a vector?
+}
+
+hist(quants, freq=F)
+
+print (ks.test(runif(test_size,0,1),quants))
+```
+
+
+
+```{r}
+discreteX <- c()
+n<- 1
+for (a in seq(1,n,1)){
+  x<- rnorm(1, 0, 1)  #N(0,1)
+  for (i in seq(-3, 3, .1)){
+    if ((i < x) & (x< i+.1)){
+      discreteX<- c(discreteX, i+.05)   #to make it middle of bin 
+    }
+  }
+}
+discreteX
+values <- c()
+for (i in seq(-3, 3, .0001)){
+  values <- c(values, pnorm(i+.0001,0,1)-pnorm(i,0,1))
+}
+empirical_cdf <- function(q, values){  
+  bin_index <- 1
+  for (d in seq(-3,3,.0001)){  
+    if (q < d){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  return (cumsum(values)[bin_index])  
+}
+
+pit<-c()
+for(d in discreteX){
+  pit<- c(pit,empirical_cdf(d, values))
+}
+
+hist(pit, freq=F)
+```
+
+Generating from continuous norm 
+```{r}
+bin_iter_size <- .1
+n<- 10000
+discreteX <- rnorm(n,0,1)
+
+values <- c()
+for (i in seq(-10, 10, bin_iter_size)){
+  values <- c(values, pnorm(i+bin_iter_size,0,1)-pnorm(i,0,1))
+}
+empirical_cdf <- function(q, values){  
+  bin_index <- 1
+  for (d in seq(-10,10,bin_iter_size)){  
+    if (q < d){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  return (cumsum(values)[bin_index])  
+}
+
+pit<-c()
+for(d in discreteX){
+  pit<- c(pit,empirical_cdf(d, values))
+}
+
+hist(pit, freq=F)
+```

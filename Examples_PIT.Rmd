@@ -1,0 +1,94 @@
+---
+title: "Mini-Examples"
+author: "Rebecca Silva"
+date: "June 4, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Start with drawing from a known distribution and showing that pdf of random variables fit/match the known distribution. 
+Simple example of verifying observed random variables follow distribution. (as n increases, follows distribution more closely)
+```{r}
+
+
+n<- 1000
+x<- rnorm(n,0,1)
+hist(x, freq = FALSE) #empirical density (histograms can be seen as empirical pdfs)
+t<- c(-300:300)/100 #creates vectors from -300 to 300 sep. by 1/100 ie t[1]=-300, t[2]= -299.9
+lines(t,dnorm(t,0,1)) #true density
+
+
+#here would explain PIT
+
+
+#puts both histograms next to each other
+par(mfrow=c(1,2))   #nrows,ncols
+#1. histogram of 1000 points from X~ N(0,1)
+n<- 10000
+x<- rnorm(n,0,1)  #draw z from norm(0,1)
+hist(x, freq=F, main= "X ~ N(0,1)")
+#2. pit histogram of Z
+y<- pnorm(x,0,1)
+hist(y, freq=F, main= "PIT Histogram",sub= "x pluged into CDF of N(0,1) ")
+s<- c(1:n)/n
+lines(s,dunif(s,0,1), col=2) #cdf of uniform (2- red, 3-gr,4-blue)
+
+
+```
+
+application of it: 
+```{r}
+n<- 10000
+x<- rnorm(n,0,1)
+y1<- pnorm(x,0,1)  #true cdf
+y2<- pnorm(x,0,5)
+par(mfrow=c(1,2))
+hist(y1, freq=F, main= "X ~N(0,1) w/ N(0,1) CDF", xlab='PIT values')
+s<- c(1:n)/n
+lines(s,dunif(s,0,1), col=2)
+hist(y2, freq=F, main= "X ~N(0,1) w/ N(0,5) CDF", xlab= 'PIT values)
+lines(s,dunif(s,0,1), col=2)
+#this shows that when plugging in data from N(0,1) into a cdf of N(0,5), the distribution does not fit the data. We see a normal distribution (data points have less variation so all clusted in center with little on tails) when we should see a uniform distrubution by theory of PIT
+```
+
+***Drawing from an exponential distribution
+```{r}
+
+n<-10000
+x<- rexp(n,1)
+hist(x, freq=F)
+t<- c(0:1200)/100
+lines(t,dexp(t,1)) #dexp=density function
+
+plot(ecdf(x))
+lines(t, pexp(t,1),col=2) #pexp= pdf
+
+#we can show a similar result with the exponential distribution 
+par(mfrow= c(1,2))
+n<-10000
+x<- rexp(n,1)
+hist(x, freq=F, main= "X ~ Exp(1)")
+y<-pexp(x,1)         #PIT 
+hist(y,freq=F, main = "PIT Histogram", sub= "x pluged into CDF of N(0,1) ")
+s<- c(0:100)/100
+lines(s,dunif(s,0,1), col=2)
+
+#application
+par(mfrow= c(1,2))
+y1<-pexp(x,1) 
+y2<-pexp(x,5)
+hist(y1, freq=F, main= "X ~Exp(0,1) in Exp(1) CDF", xlab= "PIT values")
+s<- c(1:n)/n
+lines(s,dunif(s,0,1), col=2)
+hist(y2, freq=F, main= "X ~Exp(0,1) in Exp(5) CDF", xlab= "PIT values")
+lines(s,dunif(s,0,1), col=2)
+
+```
+
+
+

@@ -1,0 +1,87 @@
+---
+title: "Reading_csv"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+library(readr)
+library(dplyr)
+data<- read_csv("https://raw.githubusercontent.com/rsilva19/cdc-flusight-ensemble/master/model-forecasts/cv-ensemble-models/constant-weights/EW01-2011-constant-weights.csv")
+true<- read_csv("https://raw.githubusercontent.com/FluSightNetwork/cdc-flusight-ensemble/master/scores/target-multivals.csv")
+
+str(true)
+
+
+
+wk1r1<- filter(data, location== 'HHS Region 1', target=='1 wk ahead')
+
+
+
+values <- wk1r1$value[1:length(wk1r1$value)-1]
+#par(mfrow=c(1,2))
+plot(seq(0.05,13.1,.1), values )                 #pdf
+plot(seq(0.05,13.1,.1),cumsum(values))           #cdf
+
+     
+empirical_cdf <- function(q, values){
+  bin_index <- 0
+  for (wili in seq(0.1,13.1,.1)){
+    if (q < wili){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  return (cumsum(values)[bin_index])
+}
+
+#finding q from true data 
+str(true)
+q<- true %>% filter('Year'== 2011, Calendar Week == 1, Target =='1 wk ahead', Model Week == 53, Location=='HHS Region 1')
+as.numeric(q)
+
+empirical_cdf(1.1, values) 
+empirical_cdf(2, wk1r1$value) 
+
+```
+
+
+Season peak percentage
+```{r}
+PPr1<- filter(data, location== 'HHS Region 1', target=='Season peak percentage')
+str(PPr1)
+
+
+
+values <- PPr1$value[1:length(PPr1$value)-1]
+par(mfrow=c(1,2))
+plot(seq(0.05,13.1,.1), values )                 #pdf
+plot(seq(0.05,13.1,.1),cumsum(values))           #cdf
+
+     
+empirical_cdf <- function(q, values){
+  bin_index <- 0
+  for (wili in seq(0.1,13.1,.1)){
+    if (q < wili){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  print (bin_index)
+  return (cumsum(values)[bin_index])
+}
+
+empirical_cdf(1.1, values) 
+empirical_cdf(2, values) 
+
+```
+
+
+
+

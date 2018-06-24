@@ -1,0 +1,65 @@
+---
+title: "AutoRegressiveTS Example"
+author: "Rebecca Silva"
+date: "June 22, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+***Simulate from AR(.5)
+
+
+```{r}
+library("forecast")
+par(mfrow=c(1,2))
+t<- arima.sim(list(order=c(1,0,0), ar=.5), n=1000, sd=1) 
+ts.plot(t)
+
+#but say forecaster model thinks ar=1  z- pit value from true (observed) data t 
+z <- c(pnorm(t[1],0,1))
+for (i in 2:length(t)){
+  z<-c(z, pnorm(t[i], 1*t[i-1],1 ))
+}
+plot(z)
+z_mean<- mean(z)
+hist(z,freq=F)
+d<- (z-z_mean)
+acf(d)
+pacf(d)
+
+#perfect forcaster 
+z2 <- c(pnorm(t[1],0,1))
+for (i in 2:length(t)){
+  z2<-c(z2, pnorm(t[i], .5*t[i-1],1 ))
+}
+plot(z2)
+z_mean2<- mean(z2)
+hist(z2,freq=F)
+d2<- (z2-z_mean2)
+acf(d2)
+pacf(d2) #all autocorrelations within bounds 
+
+
+#blue dashed lines in acf() show values beyond which the autocorrelations are (statistically) significantly different from zero 
+
+#powers of d
+dexp2<- d^2
+dexp3<- d^3
+dexp4 <- d^4
+
+par(mfrow=c(3,2))
+acf(dexp2)
+pacf(dexp2)
+acf(dexp3)
+pacf(dexp3) #outside blue lines 
+acf(dexp4)
+pacf(dexp4)
+
+
+
+```

@@ -1,0 +1,117 @@
+---
+title: "Discrete with PIT"
+author: "Rebecca Silva"
+date: "June 22, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r}
+library(MCMCpack)
+library(stats)
+x <- seq(0,13,.1)
+
+dist<- rdirichlet(1, c(100,rep(1,length(x)-1))) # generates 131 probabilities (all in 1 vector) that all sum to 1
+
+dist
+
+empirical_cdf <- function(q, values){  #q is obv data, values are the different probabilities that sum to one
+  bin_index <- 0
+  for (wili in seq(0.1,13.1,.1)){  #finding out which bin q is in (ie what bin of wili % the true wili % is in )
+    if (q < wili){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  return (cumsum(values)[bin_index])  #sums all prob up to bin_index (bin_index would be wILI %)
+}
+
+
+test_size<- 1000
+dat <- sample(x, test_size,replace=TRUE)+ rnorm(test_size,0,.01) #1000 samples from seq 0, 13, .1, rnorm is noise in model
+
+head(dat)
+
+str(dat)
+
+quants <- c()
+for (d in dat){
+  quants <- c(quants,empirical_cdf(d,dist))  #a way to make it a vector?
+}
+
+hist(quants, freq=F)
+
+print (ks.test(runif(test_size,0,1),quants))
+```
+
+
+```{r}
+discreteX <- c()
+n<- 1
+for (a in seq(1,n,1)){
+  x<- rnorm(1, 0, 1)  #N(0,1)
+  for (i in seq(-3, 3, .1)){
+    if ((i < x) & (x< i+.1)){
+      discreteX<- c(discreteX, i+.05)   #to make it middle of bin 
+    }
+  }
+}
+discreteX
+values <- c()
+for (i in seq(-3, 3, .0001)){
+  values <- c(values, pnorm(i+.0001,0,1)-pnorm(i,0,1))
+}
+empirical_cdf <- function(q, values){  
+  bin_index <- 1
+  for (d in seq(-3,3,.0001)){  
+    if (q < d){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  return (cumsum(values)[bin_index])  
+}
+
+pit<-c()
+for(d in discreteX){
+  pit<- c(pit,empirical_cdf(d, values))
+}
+
+hist(pit, freq=F)
+```
+
+Generating from continuous norm 
+```{r}
+bin_iter_size <- .1
+n<- 10000
+discreteX <- rnorm(n,0,1)
+
+values <- c()
+for (i in seq(-10, 10, bin_iter_size)){
+  values <- c(values, pnorm(i+bin_iter_size,0,1)-pnorm(i,0,1))
+}
+empirical_cdf <- function(q, values){  
+  bin_index <- 1
+  for (d in seq(-10,10,bin_iter_size)){  
+    if (q < d){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  return (cumsum(values)[bin_index])  
+}
+
+pit<-c()
+for(d in discreteX){
+  pit<- c(pit,empirical_cdf(d, values))
+}
+
+hist(pit, freq=F)
+```
+

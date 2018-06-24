@@ -1,0 +1,256 @@
+---
+title: "EnsemblePIT hist discrete"
+author: "Rebecca Silva"
+date: "June 22, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+Functions for PIT
+```{r}
+#gets true observation from dataframe true_tidy 
+get_true<- function(CW, Seas, Loca, Tar){   
+  obs <- true_tidy %>% filter(Calendar_Week == CW,Season== Seas, Location == Loca, Target==Tar) %>% select(Valid_Bin_start_incl)
+  return(as.numeric(obs))
+}
+get_true(1,'2010/2011', 'HHS Region 1', '1 wk ahead')
+
+#emipical cdf function returns pit value 
+    #q: observed value of wili, q is for 'quantile' bc asking for quantile of observed value
+    #percents: vector of percentages for possibile wili values 
+empirical_cdf <- function(q, percents){   
+  bin_index <- 0
+  for (wili in seq(0.1,13.1,.1)){  #wili= weighted influenza-like illness (%), seq rep. bins which rep. wili
+    if (q < wili){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  return (cumsum(percents)[bin_index])
+}
+
+
+#generates ~10,500 pit values from ensemble model: uses functions empirical_cdf() and get_true()
+#10 minutes to run 
+generate_all_pit_values<- function(ensemble_data){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+        for (r in regions){
+          for(t in targets){
+            df<- ensemble_data %>% filter(location== r, target== t, Season== s, week==w) 
+            percents <- df$value[1:length(df$value)-1]
+            q<-get_true(w,s,r,t)
+            pit_values<- c(pit_values,empirical_cdf(q, percents))
+          }
+        }
+      }
+    }
+  return(pit_values)
+}
+
+#apply generate_all_pit_values() for all ensemble models
+#'all' means ALL targets, regions, seasons, and weeks
+all_pit_constant<- generate_all_pit_values(constant_weights_tidy)
+
+
+all_pit_equal<- generate_all_pit_values(equal_weights_tidy)
+all_pit_target_region<- generate_all_pit_values(target_region_weights_tidy)
+all_pit_target_type<-generate_all_pit_values(target_weights_tidy)
+all_pit_target<- generate_all_pit_values(target_type_weights_tidy)
+
+n<- 10000
+s<- c(1:n)/n
+par(mfrow=c(2,3))
+hist(all_pit_constant, freq=F)
+lines(s,dunif(s,0,1), col=2)
+hist(all_pit_equal, freq=F)
+lines(s,dunif(s,0,1), col=2)
+hist(all_pit_target_region, freq= F)#look skewed
+lines(s,dunif(s,0,1), col=2)
+hist(all_pit_target_type, freq= F)
+lines(s,dunif(s,0,1), col=2)
+hist(all_pit_target, freq = F)
+lines(s,dunif(s,0,1), col=2)
+
+ks.test(all_pit_constant, runif(10000,0,1)) #p-value for all models < 2.2e-16
+
+#generates histogram plot
+pit_histogram<- function(pit_values){
+  return(hist(pit_values, freq=F))
+}
+
+#add acf graph, example is with target_type_based_weights
+#all outside the blue lines: misspecification because implies correlation btwn pit_values 
+z_mean<- mean(all_pit_target_type)
+d<- (all_pit_target_type-z_mean)
+acf(d)
+pacf(d)
+
+dexp2<- d^2
+dexp3<- d^3
+dexp4 <- d^4
+acf(dexp2)
+pacf(dexp2)
+
+acf(dexp3)
+pacf(dexp3) 
+
+acf(dexp4)
+pacf(dexp4)
+
+
+```
+
+
+
+breaking models up by region and target 
+
+##first: by target
+```{r}
+
+
+#want to generate sep pit vectors for each target (then region, then region and target) 
+#function that depends on target and model 
+
+target_pit_values<- function(model, tar){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+        for (r in regions){
+          df<- model %>% filter(location== r, target== tar, Season== s, week==w) 
+          percents <- df$value[1:length(df$value)-1]
+          q<-get_true(w,s,r,tar)
+          pit_values<- c(pit_values,empirical_cdf(q, percents))
+        }
+      }
+    }
+  return(pit_values)
+}
+
+
+#target values from all models
+#list five pit vectors, one for each target 
+cw_list<- list()
+ew_list<- list()
+tar_reg<- list()
+tar_type<- list()
+tar_w<- list()
+
+i<- 1
+#while (i <= 5){
+for (t in targets){
+    cw_list[[i]]<-target_pit_values(constant_weights_tidy, t)
+    ew_list[[i]]<- target_pit_values(equal_weights_tidy, t)
+    tar_reg[[i]]<- target_pit_values(target_region_weights_tidy, t)
+    tar_type[[i]]<- target_pit_values(target_type_weights_tidy, t)
+    tar_w[[i]]<- target_pit_values(target_weights_tidy, t)
+    i<- i+1
+}
+
+
+
+#PIT hist for all 5 targets of constant weight model  
+for(i in 1:5){
+  hist(cw_list[[i]], freq=F) 
+}
+
+
+```
+
+##Second: by region 
+```{r}
+#function for pit values of regions 
+regions_pit_values<- function(model, reg){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+        for (t in targets){
+          df<- model %>% filter(location== reg, target== t, Season== s, week==w) 
+            percents <- df$value[1:length(df$value)-1]
+            q<-get_true(w,s,reg,t)
+            pit_values<- c(pit_values,empirical_cdf(q, percents))
+        }
+      }
+    }
+  return(pit_values)
+}
+
+
+cw_list_reg<- list()
+ew_list_reg<- list()
+tar_reg_reg<- list()
+tar_type_reg<- list()
+tar_w_reg<- list()
+
+i<- 1
+for (r in regions){
+    cw_list_reg[[i]]<-regions_pit_values(constant_weights_tidy, r)
+    ew_list_reg[[i]]<- regions_pit_values(equal_weights_tidy, r)
+    tar_reg_reg[[i]]<- regions_pit_values(target_region_weights_tidy, r)
+    tar_type_reg[[i]]<- regions_pit_values(target_type_weights_tidy, r)
+    tar_w_reg[[i]]<- regions_pit_values(target_weights_tidy, r)
+    i<- i+1
+}
+
+#PIT hist for all 5 targets of constant weight model  
+for(i in 1:5){
+  hist(cw_list_reg[[i]], freq=F) 
+}
+```
+
+##Third by target and region
+```{r}
+#function for pit values of regions and targets 
+target_and_region_pit_values<- function(model, tar, reg){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+          #could make next 4 lines a function and not include for loops in generate_pit_values()
+          df<- model %>% filter(location== reg, target== tar, Season== s, week==w) 
+          percents <- df$value[1:length(df$value)-1]
+          q<-get_true(w,s,reg,tar)
+          pit_values<- c(pit_values,empirical_cdf(q, percents))
+      }
+    }
+  return(pit_values)
+}
+
+#50 possible combinations of target and region..list of vectors similar to loop with target values? 
+cw_list_BYreg_tar<- list()
+ew_list_BYreg_tar<- list()
+tar_reg_BYreg_tar<- list()
+tar_type_BYreg_tar<- list()
+tar_w_BYreg_tar<- list()
+
+ 
+wk1_HHS1 <- target_and_region_pit_values(constant_weights_tidy,'1 wk ahead', 'HHS Region 1')
+#hist()
+
+i<- 1
+for(t in targets){
+  for (r in regions){
+    cw_list_BYreg_tar[[i]]<-target_and_region_pit_values(constant_weights_tidy, t, r)
+    ew_list_BYreg_tar[[i]]<- target_and_region_pit_values(equal_weights_tidy, t, r)
+    tar_reg_BYreg_tar[[i]]<- target_and_region_pit_values(target_region_weights_tidy, t, r)
+    tar_type_BYreg_tar[[i]]<- target_and_region_pit_values(target_type_weights_tidy,t,  r)
+    tar_w_BYreg_tar[[i]]<- target_and_region_pit_values(target_weights_tidy, t, r)
+    i<- i+1
+  }
+}
+
+
+#PIT hist for all 5 targets of constant weight model  
+for(i in 1:5){
+  hist(cw_list_BYreg_tar[[i]], freq=F) 
+}
+
+```
+
+
