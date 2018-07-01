@@ -1,0 +1,94 @@
+---
+title: "PITvsKDE Normal"
+author: "Rebecca Silva"
+date: "June 30, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+Generating from continuous norm 
+```{r}
+bin_iter_size <- .1
+n<- 1000
+discreteX <- rnorm(n,0,1)
+
+values <- c()
+for (i in seq(-5, 5, bin_iter_size)){
+  values <- c(values, pnorm(i+bin_iter_size,0,1)-pnorm(i,0,1))
+}
+empirical_cdf <- function(q, values){  
+  bin_index <- 1
+  for (d in seq(-5,5,bin_iter_size)){  
+    if (q < d){
+      break
+    }
+    bin_index <- bin_index + 1
+  }
+  return (cumsum(values)[bin_index])  
+}
+
+pit_ecdf<-c()
+for(d in discreteX){
+  pit_ecdf<- c(pit_ecdf,empirical_cdf(d, values))
+}
+
+hist(pit_ecdf, freq=F)
+set.seed(3)
+ks.test(pit_ecdf,runif(1000,0,1))
+```
+
+```{r}
+bin_iter_size<- .1
+n<-1000
+set.seed(2)
+values <- c()
+for (i in seq(-5, 5, bin_iter_size)){
+  values <- c(values, pnorm(i+bin_iter_size,0,1)-pnorm(i,0,1))
+}
+
+#plot(values)
+
+sampleDist <-  function(values,n ) { 
+    dist<- sample(x =seq(-5,5,bin_iter_size), n, replace = T, prob = values) 
+    return(dist)
+}
+X<- sampleDist(values, n)
+hist(X, freq=F)
+
+
+kernel_density_cdf <- function(x, data){
+  bandwith <- .1
+  cdf_density <- 0 
+  for (d in data){
+    cdf_density <- cdf_density + pnorm(x,d,bandwith)
+    }
+  return (cdf_density/length(data))
+}
+
+true<- rnorm(n,0,1)
+
+pit<-c()
+for(d in true){
+  pit<- c(pit,kernel_density_cdf(d, X))
+}
+
+hist(pit, freq=F)
+ks.test(pit, runif(n,0,1))
+
+
+#compare hists of discrete norm  
+par(mfrow=c(1,2))
+hist(pit, freq=F)
+hist(pit_ecdf,freq=F)
+
+#compare kde vs pit to ensemble model 
+par(mfrow=c(1,2))
+hist(kde_pit_target, freq=F)
+hist(all_pit_target, freq= F)
+ks.test(all_pit_target, runif(n,0,1))
+```

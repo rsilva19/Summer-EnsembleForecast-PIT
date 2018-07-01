@@ -19,7 +19,7 @@ get_true<- function(CW, Seas, Loca, Tar){
   obs <- true_tidy %>% filter(Calendar_Week == CW,Season== Seas, Location == Loca, Target==Tar) %>% select(Valid_Bin_start_incl)
   return(as.numeric(obs))
 }
-get_true(1,'2010/2011', 'HHS Region 1', '1 wk ahead')
+get_true(1,'2010/2011', 'HHS Region 1', '1 wk ahead') #test
 
 #emipical cdf function returns pit value 
     #q: observed value of wili, q is for 'quantile' bc asking for quantile of observed value
@@ -110,6 +110,7 @@ pacf(dexp4)
 
 
 
+
 breaking models up by region and target 
 
 ##first: by target
@@ -144,7 +145,6 @@ tar_type<- list()
 tar_w<- list()
 
 i<- 1
-#while (i <= 5){
 for (t in targets){
     cw_list[[i]]<-target_pit_values(constant_weights_tidy, t)
     ew_list[[i]]<- target_pit_values(equal_weights_tidy, t)
@@ -160,6 +160,54 @@ for (t in targets){
 for(i in 1:5){
   hist(cw_list[[i]], freq=F) 
 }
+for(i in 1:5){
+  hist(ew_list[[i]], freq=F) 
+}
+#library(foreach)?
+
+##shows interesting similar mispeccifications by similar trends 
+
+#target '1 wk ahead'
+par(mfrow=c(2,3))
+hist(cw_list[[1]], freq=F) 
+hist(ew_list[[1]], freq=F) 
+hist(tar_reg[[1]], freq=F) 
+hist(tar_type[[1]], freq=F) 
+hist(tar_w[[1]], freq=F) 
+
+#target '2 wk ahead'
+par(mfrow=c(2,3))
+hist(cw_list[[2]], freq=F) 
+hist(ew_list[[2]], freq=F) 
+hist(tar_reg[[2]], freq=F) 
+hist(tar_type[[2]], freq=F) 
+hist(tar_w[[2]], freq=F) 
+
+#target '3 wk ahead'
+par(mfrow=c(2,3))
+hist(cw_list[[3]], freq=F) 
+hist(ew_list[[3]], freq=F) 
+hist(tar_reg[[3]], freq=F) 
+hist(tar_type[[3]], freq=F) 
+hist(tar_w[[3]], freq=F) 
+
+#target '4 wk ahead'
+par(mfrow=c(2,3))
+hist(cw_list[[4]], freq=F) 
+hist(ew_list[[4]], freq=F) 
+hist(tar_reg[[4]], freq=F) 
+hist(tar_type[[4]], freq=F) 
+hist(tar_w[[4]], freq=F) 
+
+#target 'Season peak percentage'
+par(mfrow=c(2,3))
+hist(cw_list[[5]], freq=F) 
+hist(ew_list[[5]], freq=F) 
+hist(tar_reg[[5]], freq=F) 
+hist(tar_type[[5]], freq=F) 
+hist(tar_w[[5]], freq=F) 
+
+
 
 
 ```
@@ -192,6 +240,14 @@ tar_w_reg<- list()
 i<- 1
 for (r in regions){
     cw_list_reg[[i]]<-regions_pit_values(constant_weights_tidy, r)
+    i<- i+1
+}
+
+
+
+i<- 1
+for (r in regions){
+    cw_list_reg[[i]]<-regions_pit_values(constant_weights_tidy, r)
     ew_list_reg[[i]]<- regions_pit_values(equal_weights_tidy, r)
     tar_reg_reg[[i]]<- regions_pit_values(target_region_weights_tidy, r)
     tar_type_reg[[i]]<- regions_pit_values(target_type_weights_tidy, r)
@@ -200,9 +256,12 @@ for (r in regions){
 }
 
 #PIT hist for all 5 targets of constant weight model  
-for(i in 1:5){
+for(i in 1:10){
   hist(cw_list_reg[[i]], freq=F) 
 }
+
+hist(all_pit_constant, freq=F)
+ks.test(all_pit_constant,runif(10500,0,1))
 ```
 
 ##Third by target and region

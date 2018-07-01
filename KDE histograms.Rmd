@@ -1,0 +1,223 @@
+---
+title: "KDE Histograms"
+author: "Rebecca Silva"
+date: "July 1, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+##PIT hist with new method 
+#compares hist of each method
+```{r}
+bin_iter_size<- .1
+n<-1000 #using n=10,000 seemsto make pval smaller
+set.seed(1)
+
+generate_kde_pit_values<- function(ensemble_data){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+        for (r in regions){
+          for(t in targets){
+            df<- ensemble_data %>% filter(location== r, target== t, Season== s, week==w) 
+            percents <- df$value[1:length(df$value)-1]
+            sample<- sampleDist_wili(percents, n)
+            q<-get_true(w,s,r,t)
+            pit_values<- c(pit_values,kernel_density_cdf(q, sample))
+          }
+        }
+      }
+    }
+  return(pit_values)
+}
+
+
+sampleDist_wili <-  function(values,n ) { 
+    dist<- sample(x =seq(0,13,bin_iter_size), n, replace = T, prob = values) 
+    return(dist)
+}
+
+
+#target_type
+kde_pit_target_type<-generate_kde_pit_values(target_weights_tidy)
+par(mfrow=c(1,2))
+hist(kde_pit_target_type, freq=F)
+hist(all_pit_target_type, freq= F)
+ks.test(kde_pit_target_type, runif(n,0,1))
+
+#constnat
+kde_pit_constant<- generate_kde_pit_values(constant_weights_tidy)
+par(mfrow=c(1,2))
+hist(kde_pit_constant, freq=F)
+hist(all_pit_constant, freq= F)
+ks.test(kde_pit_target_type, runif(n,0,1))
+
+#equal
+kde_pit_equal<- generate_kde_pit_values(equal_weights_tidy)
+par(mfrow=c(1,2))
+hist(kde_pit_equal, freq=F)
+hist(all_pit_equal, freq= F)
+ks.test(kde_pit_equal, runif(n,0,1))
+
+
+#target_region
+kde_pit_target_region<- generate_kde_pit_values(target_region_weights_tidy)
+par(mfrow=c(1,2))
+hist(kde_pit_target_region, freq=F)
+hist(all_pit_target_region, freq= F)
+ks.test(kde_pit_target_region, runif(n,0,1))
+
+
+
+#target
+kde_pit_target<- generate_kde_pit_values(target_weights_tidy)
+par(mfrow=c(1,2))
+hist(kde_pit_target, freq=F)
+hist(all_pit_target, freq= F)
+ks.test(all_pit_target, runif(n,0,1))
+
+```
+
+#testing w fn 1:130 instead of 1: 131
+```{r}
+
+generate_all_pit_values_TEST<- function(ensemble_data){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+        for (r in regions){
+          for(t in targets){
+            df<- ensemble_data %>% filter(location== r, target== t, Season== s, week==w) 
+            percents <- df$value[1:130]
+            q<-get_true(w,s,r,t)
+            pit_values<- c(pit_values,empirical_cdf(q, percents))
+          }
+        }
+      }
+    }
+  return(pit_values)
+}
+
+all_pit_constant_TEST<- generate_all_pit_values_TEST(constant_weights_tidy)
+
+hist(all_pit_constant_TEST, freq=F)
+ks.test(all_pit_constant_TEST, runif(10500,0,1))
+
+
+all_pit_target_type_TEST<- generate_all_pit_values_TEST(target_type_weights_tidy)
+
+
+hist(all_pit_target_type, freq=F)
+ks.test(all_pit_target_type, runif(10500,01))
+hist(all_pit_target_type_TEST, freq=F)
+ks.test(all_pit_target_type_TEST, runif(10500,01))
+
+
+```
+
+
+
+##kde method, hist by target
+```{r}
+
+
+
+target_KDE_pit_values<- function(model, tar){
+  pit_values<- c()
+    for (s in seasons){
+      for (w in weeks_as_ints){
+        for (r in regions){
+          df<- model %>% filter(location== r, target== tar, Season== s, week==w) 
+          percents <- df$value[1:length(df$value)-1]
+          sample<- sampleDist_wili(percents, n)
+            q<-get_true(w,s,r,tar)
+            pit_values<- c(pit_values,kernel_density_cdf(q, sample))
+          q<-get_true(w,s,r,tar)
+          pit_values<- c(pit_values,empirical_cdf(q, percents))
+        }
+      }
+    }
+  return(pit_values)
+}
+
+
+#target values from all models
+#list five pit vectors, one for each target 
+cw_list<- list()
+ew_list<- list()
+tar_reg<- list()
+tar_type<- list()
+tar_w<- list()
+
+i<- 1
+for (t in targets){
+    cw_list[[i]]<-target_pit_values(constant_weights_tidy, t)
+    ew_list[[i]]<- target_pit_values(equal_weights_tidy, t)
+    tar_reg[[i]]<- target_pit_values(target_region_weights_tidy, t)
+    tar_type[[i]]<- target_pit_values(target_type_weights_tidy, t)
+    tar_w[[i]]<- target_pit_values(target_weights_tidy, t)
+    i<- i+1
+}
+
+
+
+#PIT hist for all 5 targets of constant weight model  
+for(i in 1:5){
+  hist(cw_list[[i]], freq=F) 
+}
+for(i in 1:5){
+  hist(ew_list[[i]], freq=F) 
+}
+#library(foreach)?
+
+##shows interesting similar mispeccifications by similar trends 
+
+#target '1 wk ahead'
+par(mfrow=c(2,3))
+hist(cw_list[[1]], freq=F) 
+hist(ew_list[[1]], freq=F) 
+hist(tar_reg[[1]], freq=F) 
+hist(tar_type[[1]], freq=F) 
+hist(tar_w[[1]], freq=F) 
+
+#target '2 wk ahead'
+par(mfrow=c(2,3))
+hist(cw_list[[2]], freq=F) 
+hist(ew_list[[2]], freq=F) 
+hist(tar_reg[[2]], freq=F) 
+hist(tar_type[[2]], freq=F) 
+hist(tar_w[[2]], freq=F) 
+
+#target '3 wk ahead'
+par(mfrow=c(2,3))
+hist(cw_list[[3]], freq=F) 
+hist(ew_list[[3]], freq=F) 
+hist(tar_reg[[3]], freq=F) 
+hist(tar_type[[3]], freq=F) 
+hist(tar_w[[3]], freq=F) 
+
+#target '4 wk ahead'
+par(mfrow=c(2,3))
+hist(cw_list[[4]], freq=F) 
+hist(ew_list[[4]], freq=F) 
+hist(tar_reg[[4]], freq=F) 
+hist(tar_type[[4]], freq=F) 
+hist(tar_w[[4]], freq=F) 
+
+#target 'Season peak percentage'
+par(mfrow=c(2,3))
+hist(cw_list[[5]], freq=F) 
+hist(ew_list[[5]], freq=F) 
+hist(tar_reg[[5]], freq=F) 
+hist(tar_type[[5]], freq=F) 
+hist(tar_w[[5]], freq=F) 
+
+
+
+
+```

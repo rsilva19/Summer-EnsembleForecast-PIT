@@ -1,5 +1,7 @@
 ---
-title: "Reading_csv"
+title: "EW01-2011 w KDE cdf method"
+author: "Rebecca Silva"
+date: "July 1, 2018"
 output: html_document
 ---
 
@@ -8,7 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## R Markdown
-
 
 ```{r}
 library(readr)
@@ -54,37 +55,23 @@ empirical_cdf(2, wk1r1$value)
 ```
 
 
-Season peak percentage
 ```{r}
-PPr1<- filter(data, location== 'HHS Region 1', target=='Season peak percentage')
-str(PPr1)
+
+sample<- sample(x =seq(0,12.9,bin_iter_size), n, replace = T, prob = values_test) 
 
 
+sample_other<- sample(x =seq(0,13.0,bin_iter_size), n, replace = T, prob = values) 
 
-values <- PPr1$value[1:length(PPr1$value)-1]
+#show slight difference in sample (weighted more correctly with )
+hist(sample, freq=F)
+hist(sample_other, freq=F)
 
-par(mfrow=c(1,2))
-plot(seq(0.05,13.1,.1), values )                 #pdf
-plot(seq(0.05,13.1,.1),cumsum(values))           #cdf
 
-     
-empirical_cdf <- function(q, values){
-  bin_index <- 0
-  for (wili in seq(0.1,13.1,.1)){
-    if (q < wili){
-      break
-    }
-    bin_index <- bin_index + 1
-  }
-  print (bin_index)
-  return (cumsum(values)[bin_index])
-}
+pit_values<- c(pit_values,kernel_density_cdf(q, sample))
 
-empirical_cdf(1.1, values) 
-empirical_cdf(2, values) 
+#sampleDist_wili_test <-  function(values,n ) { 
+dist_test<- sample(x =seq(0,13,bin_iter_size), n, replace = T, prob = values) 
+    #return(dist)
+#}
 
 ```
-
-
-
-
