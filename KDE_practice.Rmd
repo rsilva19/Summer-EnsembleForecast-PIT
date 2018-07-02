@@ -42,7 +42,7 @@ library(spatstat)
 
 #spatial point pattern analysis, model-fitting, simulation, tests package
 library(KernSmooth)
-N<- 10000 #shouldn't cdf look more like a normal cdf as N increases?
+N<- 10000 
 x<- rnorm(N,0,1)
 hist(x, freq=F)
 d<- density(x, bw= 'nrd0') #default kernel=guassian, default bw
@@ -53,88 +53,13 @@ plot(d)
 cdc<- CDF(d)
 cdc(.5)
 plot(cdc)
-
-#other approach using bkfe() from KernSmooth
-d2<- bkfe(x, drv= 1, bandwidth= 'nrd0' ) #how to know order of derivative in density fn?
-
-#other approach to find cdf
-#f<- approxfun(d$x, d$y, yleft=0, yright=0)
-#cdf<- integrate(f, -Inf, 2) #can replace '2'
-#plot(cdf)
 ```
 
 
-discrete normal
-```{r}
-bin_iter_size <- .1
 
-discreteX <- c()
-n<- 1000
-for (a in seq(1,n,1)){
-  x<- rnorm(1, 0, 1)  #N(0,1)
-  for (i in seq(-3, 3, bin_iter_size)){
-    if ((i < x) & (x< i+bin_iter_size)){
-      discreteX<- c(discreteX, i+(bin_iter_size/2))   #to make it middle of bin 
-    }
-  }
-}
-#discreteX
-
-kde<- density(discreteX, kernel='gaussian')
-cdf2<- CDF(kde)
-plot(cdf2)
-
-
-
-
-#plug each observed into cdf
-pit_v<- c()
-for(d in discreteX){
-  pit_v<- c(pit_v, cdf2(d))
-}
-hist(pit_v, freq=F)
-
-#VS.
-values <- c()
-for (i in seq(-3, 3, bin_iter_size)){
-  values <- c(values, pnorm(i+bin_iter_size,0,1)-pnorm(i,0,1))
-}
-plot(values)
-
-kde<- density(values, kernel='gaussian')
-cdf2<- CDF(kde)
-plot(cdf2)
-
-empirical_cdf <- function(q, values){  
-  bin_index <- 1
-  for (d in seq(-3,3,bin_iter_size)){  
-    if (q < d){
-      break
-    }
-    bin_index <- bin_index + 1
-  }
-  return (cumsum(values)[bin_index])  
-}
-
-pit<-c()
-for(d in discreteX){
-  pit<- c(pit,empirical_cdf(d, values))
-}
-
-hist(pit, freq=F)
-
-#Comparing the 2 side-by-side:
-par(mfrow=c(1,2))
-hist(pit_v, freq=F) #from kde cdf
-hist(pit, freq=F) #from empirical cdf of discrete w bw=.1
-# better at least but still want to know why cdf does't look closer to normal cdf 
-#want to look into other functions besides CDF()
-
-print (ks.test(runif(n,0,1),pit_v))
-print (ks.test(runif(n,0,1),pit))
-```
 
 #Generating from continuous norm 
+Trying kde approach. Sampling from Normal, using density() to get pdf and CDF() to get corresponding cdf. Get PIT vals by pluging in each generated sample into cdf. 
 ```{r}
 bin_iter_size <- .1
 n<- 10000
@@ -142,10 +67,7 @@ X <- rnorm(n,0,1)
 
 kde<- density(X, kernel='gaussian')
 cdf<- CDF(kde)
-plot(cdf)
-
-
-
+plot(cdf, xlim=c(-4,4))
 
 #plug each observed into cdf
 pit_v<- c()
@@ -153,20 +75,20 @@ for(d in X){
   pit_v<- c(pit_v, cdf(d))
 }
 hist(pit_v, freq=F)
-
 print (ks.test(runif(n,0,1),pit_v))
+
 ```
 #VS.
-
+##Old Method with empirical cdf (code from my PIT practice Rmd.) 
 ```{r}
 values <- c()
-for (i in seq(-10, 10, bin_iter_size)){
+for (i in seq(-5, 5, bin_iter_size)){
   values <- c(values, pnorm(i+bin_iter_size,0,1)-pnorm(i,0,1))
 }
 
 empirical_cdf <- function(q, values){  
   bin_index <- 1
-  for (d in seq(-10,10,bin_iter_size)){  
+  for (d in seq(-5,5,bin_iter_size)){  
     if (q < d){
       break
     }
@@ -182,50 +104,22 @@ for(d in discreteX){
 
 hist(pit, freq=F)
 
-#Comparing the 2 side-by-side:
+#########################################
+
+#Comparing the 2 side-by-side: (KDE approach, empirical cdf)
 par(mfrow=c(1,2))
 hist(pit_v, freq=F, main= 'Histogram using KDE') #from kde cdf drawing from continuous norm
-hist(pit, freq=F, main= 'Histogram using empirical CDF') #from empirical cdf of discrete w bw=.1
-print (ks.test(runif(n,0,1),pit_v))
-print (ks.test(runif(n,0,1),pit))
-
+hist(pit, freq=F, main= 'Histogram using\n empirical CDF') #from empirical cdf of discrete w bw=.1
+set.seed(5)
+print (ks.test(runif(n,0,1),pit_v)) # pval~ .8
+print (ks.test(runif(n,0,1),pit))   # pval~ .001 
+#(dif seed produces dif pvals but kde approach always >.05, other always <.05)
 ```
 
-Example from:
-https://www.r-bloggers.com/exploratory-data-analysis-kernel-density-estimation-in-r-on-ozone-pollution-data-in-new-york-and-ozonopolis/
+Instead of getting KDE from densities, I get kde from data that is sampled from bins with those densities. Casey thought this would be a better idea since estimates are built up around data not densities. Here, I first construct pdf using density() by using sample() to generate values -5 to 5 with respective prob. from cdf of Normal. 
 ```{r}
-# extract "Ozone" data vector for New York
-ozone<- airquality$Ozone  #vector of length 153
-
-n<- sum(!is.na(ozone))
-mean.ozone <- mean(ozone, na.rm = T)
-var.ozone <- var(ozone, na.rm = T)
-sd.ozone <- sd(ozone, na.rm = T)
-
-set.seed(1)
-ozone2<- rgamma(n, shape=mean.ozone^2/var.ozone+3, scale= var.ozone/mean.ozone+3)
-
-#obtain values of the kernel density estimates
-density.ozone<- density(ozone, na.rm=T)
-density.ozone2<- density(ozone2, na.rm=T)
-n.density2 = density.ozone2$n
-
-bw.density1<- density.ozone$bw
-bw.density2<- density.ozone2$bw
-
-plot(density.ozone2, main = 'Kernel Density Estimates of Ozone\n in New York and Ozonopolis', xlab='Ozone (ppb)', ylab= 'Density', ylim=c(0,max(density.ozone$y, na.rm=T)), lty = 1)
-lines(density.ozone, lty =3)
-
-#add legends
-legend(100, 0.015, paste('New York: N= ', n.density2, ', Bandwidth= ', round(bw.density2, 1), sep = ' '), bty= 'n')
-legend(115, 0.011, c('New York', 'Ozonopolis'), lty = c(3,1), bty = 'n')
-```
-
-```{r}
-library(spatstat)
 bin_iter_size <- .1
 n<- 10000
-X <- rnorm(n,0,1)  #'observed' data 
 
 values <- c()
 for (i in seq(-5, 5, bin_iter_size)){
@@ -239,21 +133,25 @@ sampleDist <-  function(values,n ) {
 }
 X<- sampleDist(values, n)
 
-kde<- density(X, kernel='gaussian')
-plot(kde)
-#cdf<- CDF(kde)
-#plot(cdf)
+par(mfrow=c(1,2))
+pdf<- density(X, kernel='gaussian')
+plot(pdf)
+cdf<- CDF(pdf) 
+plot(cdf, xlim= c(-5,5))
 
 pit<-c()
 for(d in X){
-  pit<- c(pit,cdf(d))
+  pit<- c(pit,cdf(d))   
 }
 
-hist(pit, freq=F)
-
+hist(pit, freq=F) #not as good as when we just generate kde pdf from densities
 
 ```
 
+Here, instead of using CDF() function, we make a cdf function that uses the formula for integral of pdf using gaussian dist.: 
+f̂ (x)=1/n∑fi(x) is your KDE at x, then F̂ (x)=1/n∑iFi(x) from https://stats.stackexchange.com/questions/296285/find-cdf-from-an-estimated-pdf-estimated-by-kde
+So each pit values in the sum of output guassian cdfs centered at observed value?
+Bandwith of .1 seems best. Large bandwiths oversmooth and smaller make it 'too precise'.  
 ```{r}
 bin_iter_size<- .1
 n<-1000
@@ -291,12 +189,11 @@ for(d in true){
 
 hist(pit, freq=F)
 ks.test(pit, runif(n,0,1))
-#statcompute(pit,runif(n,0,1))
 
-
-#library(PoweR)
+#This approach seems reasonable but depending on seed, pval is sometimes <.05. When n increases pvalue decreases as well. 
+#Seems like CDF() appraoch gives best results for normal. 
 ```
-##tried first making kde then sampling from that and still using rnorm to get true observations: pit is bell-shaped 
+Here, I try first making kde then sampling from that and still using rnorm to get true observations: pit is bell-shaped so will not move forward sampling from kde pdf. 
 ```{r}
 bin_iter_size<- .1
 n<-10000
@@ -345,46 +242,3 @@ for(d in true){
 hist(pit, freq=F)
 ks.test(pit, runif(n,0,1))
 ```
-
-##ks package
-```{r}
-library(ks)
-#ks::
-bin_iter_size<- .1
-n<-10000
-
-values <- c()
-for (i in seq(-5, 5, bin_iter_size)){
-  values <- c(values, pnorm(i+bin_iter_size,0,1)-pnorm(i,0,1))
-}
-
-#want pdf and cdf from values; will plug observed data into cdf
-sampleDist <-  function(values,n ) { 
-    dist<- sample(x =seq(-5,5,bin_iter_size), n, replace = T, prob = values) 
-    return(dist)
-}
-X<- sampleDist(values, n)
-
-m<- list(X, values)
-matrix(m, nrow=2, ncol = 101) #fail
-cdf_test<- ks::kcde(x=X, gridsize= seq(-5,5,bin_iter_size),eval.points=true, positive =T, tail.flag = "lower.tail")
-plot(cdf_test)
-
-
-
-```
-
-
-```{r}
-#kde<- density(X, kernel='gaussian')
-#cdf<- CDF(kde)
-#plot(cdf)
-
-#f<- approxfun(kde$x, kde$y, yleft=0, yright=0)
-#cdf2<-integrate(kde, -Inf, 2)  # replace '2' by any other value.
-#plot(cdf2)
-
-```
-
-
-
