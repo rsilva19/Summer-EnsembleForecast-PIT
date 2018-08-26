@@ -1,0 +1,70 @@
+---
+title: "PIT Hist by season"
+author: "Rebecca Silva"
+date: "8/25/2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r}
+generate_byseason<- function(data, season){
+  pit_values<- c()
+  for (w in weeks_as_ints_new){
+        for (r in regions){
+          for(t in targets){
+            df<- data %>% filter(location== r, target== t, week==w, Season== season)
+            percents <- df$value[1:length(df$value)-1]
+            q<-get_true(w,season,r,t)
+            pit_values<- c(pit_values,ecdf_round(q, percents))
+          }
+        }
+  }
+  return(pit_values)
+}
+  
+
+
+#gets true observation from dataframe true_tidy 
+get_true<- function(CW, Seas, Loca, Tar){   
+  obs <- true_tidy %>% filter(Calendar_Week == CW,Season== Seas, Location == Loca, Target==Tar) %>% select(Valid_Bin_start_incl)
+  return(as.numeric(obs))
+}
+
+
+```
+
+
+```{r}
+
+ttw_season<- list()
+
+#list where each vector contains PIT vals for one season 
+i<- 1
+for (s in seasons){
+    ttw_season[[i]]<- generate_byseason(target_type_weights_tidy, s)
+    i<- i+1
+}
+
+
+#add season 17/18 to list 
+all_seasons_ttw<- c(ttw_season, list(all_ttw_s1718))
+
+par(mfrow=c(2,4))
+for(i in 1:7){
+  hist(all_seasons_ttw[[i]], freq=F, main= (paste(seasons[i])), xlab='PIT values')   
+}
+hist(all_seasons_ttw[[8]], freq=F, main= "2017/2018", xlab='PIT values')
+
+
+```
+
+
+

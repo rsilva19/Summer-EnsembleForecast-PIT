@@ -1,0 +1,188 @@
+---
+title: "Season2017_2018"
+author: "Rebecca Silva"
+date: "8/8/2018"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Data Loading
+```{r}
+library(readr)
+library(dplyr)
+library(reshape2)
+
+#1. data loading (applying code in data loading .Rmd to season 2017-2018) 
+#ie use some predefined vectors and 'make_tidy()' function in previous Rmd
+
+#new vectors 
+valid_weeks_new<- c('01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52')
+later_weeks_new<- c('01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18')
+first_weeks_new<- c('43', '44', '45', '46', '47', '48', '49', '50', '51', '52')
+#seasons<- c('2010/2011', '2011/2012', '2012/2013', '2013/2014', '2014/2015', '2015/2016', '2016/2017')
+weeks_as_ints_new<- c(1:18, 43:52)
+
+
+import_new<- function(path, start_wk, start_yr){     
+  data<- rbind()
+  for(week in valid_weeks_new){
+    for (year in 2017:2018){
+      if (!(week %in% later_weeks_new & year =='2017') & !(week %in% first_weeks_new & year =='2018')){
+        str<- sprintf(path, week, year)
+        new<- read_csv(str)
+        new$week<- rep(as.numeric(substr(str,start_wk,start_wk+1)), nrow(new)) #adds column: week 
+        new$year<- rep(as.numeric(substr(str,start_yr, start_yr+3)),nrow(new)) #adds column: year 
+        data<- rbind(data, new)}
+    }
+  }
+  return(data)
+}
+
+make_tidy<- function(ensemble){
+  tidy<- ensemble %>% filter(location !=  'US National', target != 'week') %>% mutate(Season = ifelse(week > 30, paste(year, year+1, sep = "/"), paste(year-1, year, sep= "/")))
+  return(tidy)
+}
+
+constant_weights17_18<- import_new('~/Desktop/PIT_git/model-forecasts/real-time-ensemble-models/constant-weights/EW%s-%s-constant-weights.csv', 80, 83)
+#equal_weights17_18<- import_new('~/Desktop/PIT_git/model-forecasts/real-time-ensemble-models/equal-weights/EW%s-%s-equal-weights.csv', 77, 80)
+#target_region_weights17_18<- import_new('~/Desktop/PIT_git/model-forecasts/real-time-ensemble-models/target-and-region-based-weights/EW%s-%s-target-and-region-based-weights.csv', 95, 98)
+#target_weights17_18<- import_new('~/Desktop/PIT_git/model-forecasts/real-time-ensemble-models/target-based-weights/EW%s-%s-target-based-weights.csv', 84, 87)
+target_type_weights17_18<-import_new('~/Desktop/PIT_git/model-forecasts/real-time-ensemble-models/target-type-based-weights/EW%s-%s-target-type-based-weights.csv', 89, 92)
+
+constant_weights_tidy17_18<- make_tidy(constant_weights17_18)
+#equal_weights_tidy17_18<- make_tidy(equal_weights17_18)
+#target_region_weights_tidy17_18<- make_tidy(target_region_weights17_18)
+#target_weights_tidy17_18<- make_tidy(target_weights17_18)
+target_type_weights_tidy17_18<- make_tidy(target_type_weights17_18)
+
+#load true values from Season17-18
+true_with_17_18<- read_csv('https://raw.githubusercontent.com/FluSightNetwork/cdc-flusight-ensemble/master/scores/target-multivals-20172018.csv')
+names(true_with_17_18) <- gsub(" ", "_", names(true_with_17_18))
+true_tidy_with_17_18<- true_with_17_18 %>% 
+  filter(Season == '2017/2018', Location != 'US National', Target %in% c('1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season peak percentage'))
+```
+
+
+#Histograms 
+1. Functions for PIT 
+```{r}
+#gets true observation from dataframe true_tidy_with_17_18 (get_true_new is same as get_true w/o accounting for various seasons) 
+get_true_new<- function(CW, Loca, Tar){   
+  obs <- true_tidy_with_17_18 %>% filter(Calendar_Week == CW, Location == Loca, Target==Tar) %>% select(Valid_Bin_start_incl)
+  return(as.numeric(obs))
+}
+
+#empirical cdf function
+ecdf_round<- function(q, values){ 
+  d<- round(q,1)
+  bin<- d*10
+  return(cumsum(values)[bin])
+} 
+
+#uses empirical cdf function to find PIT val for each week, target, and region
+generate_pit_vals<- function(ensemble_data){
+  pit_values<- c()
+    #for (s in seasons){
+      for (w in weeks_as_ints_new){
+        for (r in regions){
+          for(t in targets){
+            df<- ensemble_data %>% filter(location== r, target== t, week==w) 
+            percents <- df$value[1:length(df$value)-1]
+            q<-get_true_new(w,r,t)
+            pit_values<- c(pit_values,ecdf_round(q, percents))
+          #}
+        }
+      }
+    }
+  return(pit_values)
+}
+
+```
+
+2. Confidence Intervals for 1 season
+```{r}
+get_CI<- function(N, breaks){
+  set.seed(2)
+  m<- c()
+  for(i in 1:1000){
+    r<- rnorm(N, 0, 1)
+    z<- pnorm(r)
+    list_hist<-hist(z, breaks=breaks, freq=F, plot=F)
+    m<- c(m, max(list_hist$density))
+  }
+  max(m)
+  m_alpha<- max(m)*(1-.05/2)
+  return(m_alpha)
+}
+  
+#all pit for season: 28 weeks * 10 regions * 5 targets = 1,400
+upper_all<- get_CI(1400,10)[1] #1.330179
+lower_all<- 1- (upper_all- 1)
+
+#by target: 28 weeks *10 regions= 280
+upper_tar<- get_CI(280,10)[1] 
+lower_tar<- 1- (upper_tar- 1)
+
+#by region: 28 weeks * 5 targets = 140
+upper_reg<- get_CI(140,10)[1] 
+lower_reg<- 1- (upper_reg- 1)
+
+```
+
+
+3. Histogram of All PIT values from TTW (and Constant for comparison)
+```{r}
+#target-type
+all_ttw_s1718<- generate_pit_vals(target_type_weights_tidy17_18)
+par(mfrow=c(1,2))
+hist(all_ttw_s1718, freq=F, main= "Target-type Weights\n PIT Histogram", xlab= "PIT values", breaks=10)
+abline(h=c(upper_all, lower_all), col= 2, lty= 5)
+
+#constant to compare 
+all_const_s1718<- generate_pit_vals(constant_weights_tidy17_18)
+par(mfrow=c(1,2))
+hist(all_const_s1718, freq=F, main= "Constant Weights\n PIT Histogram", xlab= "PIT values", breaks=10)
+abline(h=c(upper_all, lower_all), col= 2, lty= 5)
+
+
+
+```
+
+4. Histogram of TTW by Target 
+```{r}
+target_pit_values_new2<- function(model, tar){ #takes various seasons out of 'target_pit_values_new'
+  pit_values<- c()
+      for (w in weeks_as_ints_new){
+        for (r in regions){
+          df<- model %>% filter(location== r, target== tar, week==w) 
+          percents <- df$value[1:length(df$value)-1]
+          q<-get_true_new(w,r,tar)
+          pit_values<- c(pit_values,ecdf_round(q, percents))
+      }
+    }
+  return(pit_values)
+}
+
+tar_type_new2<- list()
+
+i<- 1
+for (t in targets){
+    tar_type_new2[[i]]<- target_pit_values_new2(target_type_weights_tidy17_18, t)
+    i<- i+1
+}
+
+par(mfrow=c(2,3))
+for(i in 1:5){
+  hist(tar_type_new2[[i]], freq=F, ylim= c(0, 2.0), main= (paste(targets[i])), xlab='PIT values')
+  abline(h=c(upper_tar, lower_tar), col= 2, lty= 5)
+}
+```
+
+The Probability Integral Transform (PIT) is an evaluation metric that can be used to assess the behavior and validity of a predictive distribution. The metric is a visual assessment of the shape of a histogram developed by a set of PIT values which are obtained by plugging in the true value of a target into a cumulative distribution function. For Season 2017/2018, there is a PIT value from each predictive distribution based on region, target, and evaluation week. Theoretically, the shape of the histogram should be that of a standard uniform distribution. Figure [?] shows the PIT histogram for the Target-type based weights ensemble model. The red, dashed- lines represent a confidence interval under the null hypothesis that the histogram is of i.i.d. U(0,1) distribution shape, given the number of PIT values. The 10th bar exceeds this confidence interval, showing there is a high number of PIT values ranging from .9 to 1.0 which signifies that there were more observed values than expected in the end right tail of their respective predictive distributions. In theory, if each predictive distribution was the same or similar enough to the true predictive distribution, the bars should be or equal height around 1.  (More values in the upper-most tail might support the fact that the season had higher values than expected generally?) 
+
+
